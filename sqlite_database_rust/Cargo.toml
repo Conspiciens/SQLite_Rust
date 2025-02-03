@@ -1,0 +1,6 @@
+[package]
+name = "sqlite_database_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
