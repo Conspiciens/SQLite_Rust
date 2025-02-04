@@ -60,7 +60,14 @@ impl<'a> Simple_ast_tree<'a> {
             }
         }
 
-        while tmp.is_none() == true {
+        while tmp.is_none() == false {
+            if tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left.is_some()) == Some(false) {
+                tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left = node);
+
+                return Simple_ast_tree {
+                    head: self.head.clone(), 
+                }
+            }
 
             if tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right.is_some()) == Some(false) {
                 tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right = node);
@@ -70,19 +77,73 @@ impl<'a> Simple_ast_tree<'a> {
                 }
             }
 
-            if tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left.is_some()) == Some(false) {
-                tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left = node);
-
-                return Simple_ast_tree {
-                    head: self.head.clone(), 
-                }
-            }
-
-            tmp = tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left.clone()).expect("Issue");
+            tmp = tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right.clone()).expect("Issue");
         }
 
         return Simple_ast_tree {
             head: self.head.clone(),
         }
+    }
+
+    pub fn iter(&self) -> Iter {
+        let mut tmp: Option<Rc<RefCell<Node>>> = self.head.clone(); 
+        let mut stack: Vec<&'a str> = Vec::new(); 
+
+        while tmp.is_none() == false {
+            if tmp.as_ref().map(|node| node.borrow_mut().right.is_some()) == Some(true) {
+                let right_node = tmp.as_ref().map(|node| node.borrow_mut().right.clone()).expect("None"); 
+                stack.push(right_node.as_ref().map(|node| node.borrow_mut().val.expect("None")).expect("None"));
+                continue; 
+            }
+
+            if tmp.as_ref().map(|node| node.borrow_mut().left.is_some()) == Some(true) {
+                let left_node = tmp.as_ref().map(|node| node.borrow_mut().left.clone()).expect("None");
+                stack.push(left_node.as_ref().map(|node| node.borrow_mut().val.expect("None")).expect("None"));
+                continue; 
+            }
+
+            tmp = tmp.as_ref().map(|node| node.borrow_mut().right.clone()).expect("Can't move to the right");
+        }
+
+        Iter { values: stack }
+    }
+}
+
+pub struct Iter<'a> {
+    values: Vec<&'a str>
+}
+
+/* impl<'a> Iterator for Iter<'a> {
+    type Item = &'a str; 
+
+    fn next(&mut self) -> Option<Self::Item> {
+    }
+} */
+
+#[cfg(test)]
+mod test {
+    use crate::parser; 
+    use crate::parser::Node;
+    use core::cell::RefCell; 
+    use std::rc::Rc;
+   
+    #[test]
+    fn test_parser() {
+        let tree = parser::Simple_ast_tree::new();
+        let tree = tree.parse_into_tree("SELECT");
+
+        assert_eq!(tree.head(), Some("SELECT"));
+    }
+
+    #[test]
+    fn test_parser_left() {
+        let tree = parser::Simple_ast_tree::new();
+        let tree = tree.parse_into_tree("SELECT");
+        let tree = tree.parse_into_tree("*");
+
+        let tmp: Option<Rc<RefCell<Node>>> = tree.head.clone();
+        let tmp = tmp.as_ref().map(|node| node.borrow_mut().left.clone()).expect("None"); 
+
+        assert_eq!(tmp.as_ref().map(|node| node.borrow_mut().val.expect("None")), Some("*"));
     }
 }
