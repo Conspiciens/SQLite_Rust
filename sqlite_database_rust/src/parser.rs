@@ -8,10 +8,12 @@ enum type_keyword {
 }
 
 /* Should be a AST Tree */
+#[derive(Debug)]
 pub struct Simple_ast_tree<'a> {
     head: Option<Rc<RefCell<Node<'a>>>> 
 }
 
+#[derive(Debug)]
 struct Node<'a>{
     left: Option<Rc<RefCell<Node<'a>>>>,
     right: Option<Rc<RefCell<Node<'a>>>>,
@@ -36,77 +38,51 @@ struct Node<'a>{
 
 impl<'a> Simple_ast_tree<'a> {
     pub fn new() -> Self {
-        return Simple_ast_tree { 
-            head: None
-        }
+        Self { head: None }
     }
 
     pub fn head(&self) -> Option<&str> { 
-        return self.head.as_ref().map(|node| node.borrow_mut().val)?;
+        return self.head.as_ref()
+            .map(|node| node.borrow_mut().val)?;
     }
 
-    pub fn parse_into_tree(&self, string: &'a str) -> Simple_ast_tree<'a> {
-        let mut tmp: Option<Rc<RefCell<Node<'a>>>> = self.head.clone();
+    pub fn insert(&mut self, string: &'a str) {
 
-        let node = Some(Rc::new(RefCell::new(Node {
-            left: None, 
-            right: None, 
-            val: Some(string)
-        }))); 
-
-        if tmp.is_none() == true {
-            return Simple_ast_tree {
-                head: node,
-            }
+        if self.head.is_none() == true {
+            self.head = Some(Rc::new(
+                RefCell::new(Node {val: Some(string), left: None, right: None })));
+            return;
         }
 
-        while tmp.is_none() == false {
-            if tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left.is_some()) == Some(false) {
-                tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().left = node);
+        let node = Rc::clone(self.head.as_ref().unwrap());
 
-                return Simple_ast_tree {
-                    head: self.head.clone(), 
-                }
+        loop {
+            if node.borrow().left.is_none() == true {
+                node.borrow_mut().left = Some(Rc::new(
+                    RefCell::new(Node {val: Some(string), left: None, right: None}))); 
+                return;
             }
 
-            if tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right.is_some()) == Some(false) {
-                tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right = node);
-
-                return Simple_ast_tree {
-                    head: self.head.clone(),
-                }
+            if node.borrow().right.is_none() == true {
+                node.borrow_mut().right = Some(Rc::new(
+                    RefCell::new(Node {val: Some(string), left: None, right: None}))); 
+                return; 
             }
 
-            tmp = tmp.as_ref().map(|tmp_node| tmp_node.borrow_mut().right.clone()).expect("Issue");
+            let node = node.borrow().right.as_deref().expect("Error with going to the right node"); 
         }
 
-        return Simple_ast_tree {
-            head: self.head.clone(),
-        }
     }
 
-    pub fn iter(&self) -> Iter {
-        let mut tmp: Option<Rc<RefCell<Node>>> = self.head.clone(); 
-        let mut stack: Vec<&'a str> = Vec::new(); 
 
-        while tmp.is_none() == false {
-            if tmp.as_ref().map(|node| node.borrow_mut().right.is_some()) == Some(true) {
-                let right_node = tmp.as_ref().map(|node| node.borrow_mut().right.clone()).expect("None"); 
-                stack.push(right_node.as_ref().map(|node| node.borrow_mut().val.expect("None")).expect("None"));
-                continue; 
-            }
-
-            if tmp.as_ref().map(|node| node.borrow_mut().left.is_some()) == Some(true) {
-                let left_node = tmp.as_ref().map(|node| node.borrow_mut().left.clone()).expect("None");
-                stack.push(left_node.as_ref().map(|node| node.borrow_mut().val.expect("None")).expect("None"));
-                continue; 
-            }
-
-            tmp = tmp.as_ref().map(|node| node.borrow_mut().right.clone()).expect("Can't move to the right");
+    /* pub fn iter(&self) -> Iter {
+        if self.head.is_none() == true { 
+            return; 
         }
+        
+        let node = Rc::clone(self.head.as_mut().unwrap());
 
-        Iter { values: stack }
-    }
+    } */
 }
 
 pub struct Iter<'a> {
@@ -129,21 +105,21 @@ mod test {
    
     #[test]
     fn test_parser() {
-        let tree = parser::Simple_ast_tree::new();
-        let tree = tree.parse_into_tree("SELECT");
+        let mut tree = parser::Simple_ast_tree::new();
+        tree.insert("SELECT");
 
         assert_eq!(tree.head(), Some("SELECT"));
     }
 
     #[test]
     fn test_parser_left() {
-        let tree = parser::Simple_ast_tree::new();
-        let tree = tree.parse_into_tree("SELECT");
-        let tree = tree.parse_into_tree("*");
+        let mut tree = parser::Simple_ast_tree::new();
+        tree.insert("SELECT");
+        tree.insert("*");
 
-        let tmp: Option<Rc<RefCell<Node>>> = tree.head.clone();
-        let tmp = tmp.as_ref().map(|node| node.borrow_mut().left.clone()).expect("None"); 
+        let node = Rc::clone(&tree.head.unwrap());
+        let left_node = node.borrow().left.as_deref().expect("Issue left").borrow().val;
 
-        assert_eq!(tmp.as_ref().map(|node| node.borrow_mut().val.expect("None")), Some("*"));
+        assert_eq!(left_node, Some("*"));
     }
 }
