@@ -48,13 +48,13 @@ impl<'a> Simple_ast_tree<'a> {
 
     pub fn insert(&mut self, string: &'a str) {
 
-        if self.head.is_none() == true {
-            self.head = Some(Rc::new(
-                RefCell::new(Node {val: Some(string), left: None, right: None })));
-            return;
-        }
-
-        let node = Rc::clone(self.head.as_ref().unwrap());
+        let node = match self.head.as_ref() {
+            Some(head) => Rc::clone(head), 
+            None => { self.head = Some(Rc::new(
+                RefCell::new(Node {val: Some(string), left: None, right: None}))); 
+                return; 
+            }
+        };
 
         loop {
             if node.borrow().left.is_none() == true {
@@ -69,7 +69,7 @@ impl<'a> Simple_ast_tree<'a> {
                 return; 
             }
 
-            let node = node.borrow().right.as_deref().expect("Error with going to the right node"); 
+            let node = node.borrow().right.as_deref().unwrap(); 
         }
 
     }
